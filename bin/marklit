@@ -1,196 +1,367 @@
 #!/usr/bin/env tclsh
 
-#%<*docstrip.tcl>
-## 
-## This is the file `docstrip.tcl',
-## generated with the SAK utility
-## (sak docstrip/regen).
-## 
-## The original source files were:
-## 
-## tcldocstrip.dtx  (with options: `pkg')
-## 
-## In other words:
-## **************************************
-## * This Source is not the True Source *
-## **************************************
-## the true source is the file from which this one was generated.
-##
-package require Tcl 8.4
-package provide docstrip 1.2
+set bin_dir [file dir [file normalize [info script]]]
+set lib_dir [file join [file dir $bin_dir] lib]
+
+tcl::tm::path add $lib_dir
+
+
+package require TclOO
+package provide expander
+
+oo::class create expander {
+  constructor {} {
+      my variable context
+      array set context {}
+  }
+
+    method cpush {cname} {
+	my variable context
+
+	set depth [incr context(depth)]
+	# puts "-- cpush $depth $cname"
+	set context($depth.cname) $cname
+	set context($depth.text) ""
+    }
+
+    method cpop {cname} {
+	my variable context
+
+	set depth $context(depth)
+	set text $context($depth.text)
+	# assert $context($depth.cname)==$cname
+	array unset context $depth@*
+	array unset context $depth.*
+	incr context(depth) -1
+	return $text
+    }
+
+    method cappend {text} {
+	my variable context
+
+	set depth $context(depth)
+	append context($depth.text) $text
+    }
+
+    method cname {} {
+	my variable context
+
+	set depth $context(depth)
+	return $context($depth.cname)
+    }
+
+
+    method cset {name value} {
+	my variable context
+	set depth $context(depth)
+	set context($depth@$name) $value
+    }
+
+    method cget {name {value ""}} {
+	my variable context
+	set depth $context(depth)
+        try {
+	  set value $context($depth@$name)
+        } finally {
+          return $value
+        }
+    }
+
+
+    method registry {act args} {
+        my variable registry_dict
+
+        switch -- $act "set" {
+          lassign $args section name value
+          dict set registry_dict $section $name $value
+        } "get" {
+          lassign $args section name
+          return [dict get $registry_dict $section $name]
+        }
+    }
+
+
+    self method textcmd {text} {
+      return $text
+    }
+
+
+  self method expand {args} {
+     set expander [expander new]
+     set result [$expander expand {*}$args]
+     $expander destroy
+     return $result
+  }
+
+    method expand {ch mark_start mark_end args} {
+      array set kargs {
+	-evalcmd "uplevel #0"
+	-textcmd "expander textcmd"
+      }
+      array set kargs $args
+
+      my variable context
+      unset -nocomplain context
+      if {$mark_end eq "\n"} {
+      }
+
+
+      my cpush "#root"
+      set state "text"
+      while {[gets $ch line]>=0} {
+	append line "\n"
+	while 1 {
+	  switch -- $state "text" {
+	    set pos [string first $mark_start $line]
+	    if {$mark_end eq "\n" && $pos==0 || $mark_end ne "\n" && $pos>=0} {
+	      # puts "-- see $mark_start"
+	      set state "macro"
+	      set text_slice [string range $line 0 $pos-1]
+	      my cappend [{*}$kargs(-textcmd) $text_slice]
+	      my cpush "@"
+	      set line [string range $line $pos+[string length $mark_start] end]
+	    } else {
+	      my cappend [{*}$kargs(-textcmd) $line]
+	      # if {$mark_end ne "\n"} {
+	      # }
+	      break
+	    }
+
+	  } "macro" {
+	    if {$mark_end eq "\n"} {
+	      set pos [string length $line]
+	    } else {
+	      set pos [string first $mark_end $line]
+	    }
+	    if {$pos>=0} {
+	      set state "text"
+
+	      set text_slice [string range $line 0 $pos-1]
+	      my cappend [{*}$kargs(-textcmd) $text_slice]
+
+	      set macro [my cpop "@"]
+	      set macro_result [{*}$kargs(-evalcmd) $macro]
+	      my cappend $macro_result
+	      set line [string range $line $pos+[string length $mark_end] end]
+	    } else {
+	      my cappend [{*}$kargs(-textcmd) $line]
+	      break
+	    }
+
+	  }
+	}
+      }
+      set result [my cpop "#root"]
+
+      return $result
+    }
+
+}
+
+
+  package require stringchan
+
+
 namespace eval docstrip {
-   namespace export extract sourcefrom
-}
-proc docstrip::extract {text terminals args} {
-   array set O {
-      -annotate 0
-      -metaprefix %%
-      -onerror throw
-      -trimlines 1
-   }
-   array set O $args
-   foreach t $terminals {set T($t) ""}
-   set stripped ""
-   set block_stack [list]
-   set offlevel 0
-   set verbatim 0
-   set lineno 0
-   foreach line [split $text \n] {
-      incr lineno
-      if {$O(-trimlines)} then {
-         set line [string trimright $line " "]
-      }
-      if {$verbatim} then {
-         if {$line eq $endverbline} then {
-            set verbatim 0
-            continue
-         } elseif {$offlevel} then {
-            continue
-         }
-         if {[llength $block_stack]==0} then {continue}
-         append stripped $line \n
-         if {$O(-annotate)>=1} then {append stripped {V "" ""} \n}
-      } else {
-         switch -glob -- $line %%* {
-            if {!$offlevel} then {
-               append stripped $O(-metaprefix)\
-                 [string range $line 2 end] \n
-               if {$O(-annotate)>=1} then {
-                  append stripped [list M %% $O(-metaprefix)] \n
-               }
-            }
-         } %<<* {
-            set endverbline "%[string range $line 3 end]"
-            set verbatim 1
-            continue
-         } %<* {
-            if {![
-               regexp -- {^%<([*/+-]?)([^>]*)>(.*)$} $line ""\
-                 modifier expression line
-            ]} then {
-               extract,error BADGUARD\
-                 "Malformed guard \"\n$line\n\""
-                 "Malformed guard on line $lineno"
-               continue
-            }
-            regsub -all -- {\\|\{|\}|\$|\[|\]| |;} $expression\
-              {\\&} E
-            regsub -all -- {,} $E {|} E
-            regsub -all -- {[^()|&!]+} $E {[info exists T(&)]} E
-            if {[catch {expr $E} val]} then {
-               extract,error EXPRERR\
-                 "Error in expression <$expression> ignored"\
-                 "docstrip: $val"
-               set val -1
-            }
-            switch -exact -- $modifier * {
-               lappend block_stack $expression
-               if {$offlevel || !$val} then {incr offlevel}
-               continue
-            } / {
-               if {![llength $block_stack]} then {
-                  extract,error SPURIOUS\
-                    "Spurious end block </$expression> ignored"\
-                    "Spurious end block </$expression>"
-               } else {
-                  if {[string compare $expression\
-                    [lindex $block_stack end]]} then {
-                     extract,error MISMATCH\
-                       "Found </$expression> instead of\
-                       </[lindex $block_stack end]>"
-                  }
-                  if {$offlevel} then {incr offlevel -1}
-                  set block_stack [lreplace $block_stack end end]
-               }
-               continue
-            } - {
-               if {$offlevel || $val} then {continue}
-               append stripped $line \n
-               if {$O(-annotate)>=1} then {
-                  append stripped [list - %<-${expression}> ""] \n
-               }
-            } default {
-               if {$offlevel || !$val} then {continue}
-               append stripped $line \n
-               if {$O(-annotate)>=1} then {
-                  append stripped\
-                    [list + %<${modifier}${expression}> ""] \n
-               }
-            }
-         } %* {continue}\
-         {\\endinput} {
-           break
-         } default {
-            if {$offlevel || [llength $block_stack]==0} then {continue}
-            append stripped $line \n
-            if {$O(-annotate)>=1} then {append stripped {. "" ""} \n}
-         }
-      }
-      if {$O(-annotate)>=2} then {append stripped $lineno \n}
-      if {$O(-annotate)>=3} then {append stripped $block_stack \n}
-   }
-   return $stripped
-}
-proc docstrip::extract,error {situation message {errmessage ""}} {
-   upvar 1 O(-onerror) onerror lineno lineno
-   switch -- [string tolower $onerror] "puts" {
-      puts stderr "docstrip: $message on line $lineno."
-   } "ignore" {} default {
-      if {$errmessage ne ""} then {
-         error $errmessage "" [list DOCSTRIP $situation $lineno]
-      } else {
-         error $message "" [list DOCSTRIP $situation $lineno]
-      }
-   }
-}
-proc docstrip::sourcefrom {name terminals args} {
-   set F [open $name r]
-   if {[llength $args]} then {
-      eval [linsert $args 0 fconfigure $F]
-   }
-   set text [read $F]
-   close $F
-   set oldscr [info script]
-   info script $name
-   set code [catch {
-      uplevel 1 [extract $text $terminals -metaprefix #]
-   } res]
-   info script $oldscr
-   if {$code == 1} then {
-      error $res $::errorInfo $::errorCode
-   } else {
-      return $res
-   }
-}
-## 
-## 
-## End of file `docstrip.tcl'.
-#%</docstrip.tcl>
 
-package require docstrip
 
-if {1} {
-    set pos [lsearch $::argv "--"]
-    if {$pos>=0} {
-      set docstrip_argv [lrange $::argv 0 $pos-1]
-      set argv          [lrange $::argv $pos+1 end]
-    } else {
-      set docstrip_argv $argv
-      set argv          {}
+    proc extract {text terminals} {
+      variable docstrip_terminals
+      unset -nocomplain docstrip_terminals
+      foreach term $terminals {
+	set docstrip_terminals($term) 1
+      }
+      set expander [expander new]
+      set result [
+        $expander expand $text "%" "\n" \
+          -evalcmd [list [namespace which docstrip-evalcmd] $expander] \
+          -textcmd [list [namespace which docstrip-textcmd] $expander ] \
+      ]
+      $expander destroy
+      return $result
+    }
+
+    proc docstrip-expr {guard_expr} {
+      variable docstrip_terminals
+      expr [regsub -all -- {[^()|&!]+} $guard_expr {[info exists docstrip_terminals(&)]}]
+    }
+
+
+    proc docstrip-evalcmd {expander line} {
+      if [regexp -- {^<([=*/+-]?)([^>]*)>(.*)$} $line - modifier guard_expr line] {
+        # ...
+      } elseif [regexp -- {^(@)} $line - modifier] {
+        # ...
+      } elseif { 0 && [regexp -- {^!\s*(.*)} $line - command]} {
+        set modifier "!"
+      } else {
+        return
+      }
+
+      switch -- $modifier {
+	"*" {
+	  $expander cpush $guard_expr
+          return
+	}
+	"=" {
+	  $expander cpush $guard_expr
+	  $expander cset name $guard_expr
+	  $expander cset type "snippet"
+          return
+	}
+        "@" -
+	"/" {
+          if {$modifier eq "@"} {
+            set guard_expr [$expander cname]
+          }
+          set ctype  [$expander cget type]
+          set cname  [$expander cget name]
+	  set text [$expander cpop $guard_expr]
+          switch -- $ctype "snippet" {
+            $expander registry set snippet $cname $text
+            return
+          } default {
+	    if [docstrip-expr $guard_expr] {
+	      return $text
+	    } else {
+	      return
+            }
+          } ;# end switch
+	}
+	"+" {
+	  if [docstrip-expr $guard_expr] {
+	    return $line
+	  }
+	}
+	"-" {
+	  if ![docstrip-expr $guard_expr] {
+	    return $line
+	  }
+	}
+      } ;# end switch
+      return
+    }
+
+
+    proc docstrip-textcmd {expander text} {
+      if [regexp {^\s*<<[^>]+>>\s*$} $text] {
+        set snippet [$expander registry get snippet "include"]
+        set text $snippet
+      }
+      return $text
+    }
+
+
+    proc tangle {ch root} {
+
+      set expander [expander new]
+      set result [
+        $expander expand $ch "%" "\n" \
+          -evalcmd [list [namespace which docstrip-evalcmd] $expander] \
+      ]
+
+      set ch_code [chan create {write read} [stringchan new ""]]
+      set code [tangle-expand $ch_code $root $expander]
+      chan seek $ch_code 0 start
+      set result [chan read $ch_code]
+      chan close $ch_code
+
+      $expander destroy
+
+
+      return $result
+    }
+
+    proc tangle-expand {ch chunk expander} {
+        # puts $ch "# debug: expand chunk $chunk"
+        set text [$expander registry get snippet $chunk]
+        set buffer ""
+        foreach line [split $text "\n"] {
+          if [regexp {^\s*<<([^>]+)>>\s*$} $line - chunk_name] {
+            puts -nonewline $ch [tangle-expand $ch $chunk_name $expander]
+          } else {
+            puts $ch $line
+          }
+        }
+        return $buffer
+    }
+
+
+  proc tangle-f {fpath root} {
+      set fp [open $fpath "r"]
+      set code [tangle $fp $root]
+      close $fp
+      return $code
+  }
+
+  proc tangle-x {fpath root} {
+    set slave [interp create]
+
+    lassign [argv-split $::argv "--"] argv_head argv_tail
+    $slave eval [list set ::argv $argv_tail]
+
+    try {
+      set result "" 
+
+      $slave eval info script $fpath
+      set code [tangle-f $fpath $root]
+      return [$slave eval $code]
+    }
+  }
+
+
+
+  namespace export extract
+  namespace export tangle
+  namespace export tangle-f
+  namespace export tangle-x
+  namespace ensemble create
+}
+
+package ifneeded argv-util 0.1 {
+    package provide argv-util 0.1
+    
+    proc argv-split {argv {separator "--"}} {
+	set pos [lsearch $argv $separator]
+	if {$pos>=0} {
+	  return [list [lrange $argv 0 $pos-1] [lrange $argv $pos+1 end]]
+	} else {
+	  return [list $argv {}]
+	}
     }
 }
 
-set terminals [lassign $docstrip_argv act file_path]
+  package require argv-util
 
-switch -- $act {
-  "-f" {
-    set fp [open $file_path]
-    set text [read $fp] 
-    close $fp
-    set result [docstrip::extract $text $terminals]
-    puts $result
-  }
-  "-x" {
-    docstrip::sourcefrom $file_path $terminals
-  }
+proc marklit-tangle {args} {
+    set terminals [lassign $args act file_path chunk]
+
+    switch -- $act {
+      "-f" {
+	set result [docstrip tangle-f $file_path $chunk]
+	puts $result
+      }
+      "-x" {
+	set result [docstrip tangle-x $file_path $chunk]
+	puts $result
+      }
+    }
+
 }
+
+
+  set argv [lassign $::argv action]
+  switch -- $action "tangle" {
+      marklit-tangle {*}$argv 
+  } "help" {
+      puts "Usage:"
+      puts ""
+      puts "  marklit tangle -f input.marklit root"
+      puts "  marklit tangle -x input.marklit root"
+      puts ""
+  } default {
+      puts "MarkLit = Markdown + Literate Programming"
+  }
+  exit
+
+
