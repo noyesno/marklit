@@ -1,0 +1,108 @@
+#!/usr/bin/env tclsh
+# vim:set syntax=tcl: #
+
+package require Markdown
+package require textutil::expander
+
+
+proc main-find {srcdir dstdir} {
+  set srcdir [string trimright $srcdir "/"]
+  set dstdir [string trimright $dstdir "/"]
+  foreach srcfile [exec find $srcdir -name *.md -printf "%P\n"] {
+     set dstfile [file join $dstdir $srcfile]
+     set dstfile [file root $dstfile].html
+     main-render $srcdir/$srcfile $dstfile
+  } 
+}
+
+proc main-update {srcdir dstdir srcfile_list} {
+  foreach srcfile $srcfile_list {
+    set dstfile [file join $dstdir $srcfile]
+    main-render $srcfile $dstfile 
+  }
+}
+
+proc main-render {markdown_file html_file} {
+  set html_file [file root $html_file].html
+
+  puts "... render $markdown_file => $html_file"
+
+  set fp [open $markdown_file]
+  set markdown_text [read $fp]
+  close $fp
+
+  set theme $::kargs(-theme)
+  set tmpl_file theme/$theme/default.html
+  set fp [open $tmpl_file]
+  set tmpl_text [read $fp]
+  close $fp
+
+
+  if {0} {
+    set html_text [markdown2html $markdown_text]
+  } else {
+    set ::page_body $markdown_text
+    set html_text [dodomark_expander expand $tmpl_text]
+  }
+
+  set fout [open $html_file "w"]
+  puts $fout $html_text
+  close $fout
+}
+
+::textutil::expander dodomark_expander
+
+proc = {args} {
+  return [concat {*}$args]
+} 
+
+dodomark_expander setbrackets "<?" "?>"
+
+proc markdown2html {markdown_text} {
+  set html_text [::Markdown::convert $markdown_text]
+  return $html_text
+}
+
+#==============================================================#
+# main                                                         #
+#==============================================================#
+
+proc main {args} {
+  global argc argv kargs
+
+  set argv [lassign $argv srcdir dstdir]
+  set argc [llength $argv]
+
+  array set kargs {
+    @      ""
+    -theme "default"
+  }
+
+  for {set argidx 0} {$argidx<$argc} {incr argidx} {
+    set arg [lindex $argv $argidx]
+
+    switch -- $arg {
+      "-theme" {
+	set kargs($arg) [lindex $argv [incr argidx]]
+      }
+      default {
+	lappend kargs(@) $arg
+      }
+    }
+  }
+
+  set argv $kargs(@) ; set argc [llength $argv]
+
+  if {$argc==0} {
+     main-find $srcdir $dstdir
+  } else {
+     main-update $srcdir $dstdir $argv
+  }
+}
+
+#==============================================================#
+main $::argc $::argv
+exit
+#==============================================================#
+
+
