@@ -7,6 +7,10 @@ Markdown + Literate Programming
 
 Build static site from Markdown files.
 
+  ```
+  % dodomark src-dir/ export-dir/ -theme markdeep
+  ```
+
 ## DodoMark
 
 DodoMark is a markdown editor just works, for simplicity and focus on the essential.
@@ -14,3 +18,5 @@ DodoMark is a markdown editor just works, for simplicity and focus on the essent
 ## PicTcl
 
 Drawing diagram using code, `pic` like, using Tcl like language.
+
+* Usage and Examples - [diagram/pictcl.html](diagram/pictcl.html)
