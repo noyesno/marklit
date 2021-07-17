@@ -3,10 +3,15 @@
 article {
   margin:3em auto;
 }
+
+svg {
+}
+svg text {
+  font-family:monospace;
+  stroke:none;
+}
 </style>
 
-<script src="tcl.js"></script>
-<script src="pictcl.js"></script>
 </head>
 
 <h1>PicTcl Diagram</h1>
@@ -118,7 +123,8 @@ circle -padx 0
 
 </main>
 
-<script>
+<script type="module">
+import PicDiagram from './pictcl.js';
 
 PicDiagram(document.querySelector("#demo-a1"));
 PicDiagram(document.querySelector("#demo-a2"));

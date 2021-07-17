@@ -1,4 +1,9 @@
-PicSVG = {
+import TclInterp from './tcl.js';
+
+let svg_anchor;
+let svg_stack;
+ 
+let PicSVG = {
   createElement: function(name, attrs){
     var xmlns = "http://www.w3.org/2000/svg";
 
@@ -25,11 +30,11 @@ PicSVG = {
   }
 }
 
-tcl = new TclInterp();
+let tcl = new TclInterp();
 tcl.eval("set abc 123");
 
 
-PicTcl = {
+let PicTcl = {
   args_text: function(args){
     for(var i=1, n=args.length; i<n; i++){
       if(args[i].content[0] != "-"){
@@ -336,3 +341,5 @@ function PicDiagram(svg, pictcl_code){
   svg.setAttribute("height", svgbox.height);
 }
 
+
+export default PicDiagram;

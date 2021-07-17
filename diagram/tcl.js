@@ -9,7 +9,7 @@
  * Richard Suchenwirth 2007: cleanup, additions
  * vim: syntax=javascript autoindent softtabwidth=4
  */
- _step = 0 // set to 1 for debugging
+var _step = 0 // set to 1 for debugging
 
 // package provide tcl.js 0.4
 
@@ -204,7 +204,7 @@ function TclInterp () {
     else                  var code = args.slice(1).join(" ");
     return interp.eval(code);
   });
-  sqrt = Math.sqrt; // "publish" other Math.* functions as needed
+  let sqrt = Math.sqrt; // "publish" other Math.* functions as needed
   this.registerCommand("expr", function (interp, args) {
     return eval(args[1].toString());
   });
@@ -508,7 +508,7 @@ function TclInterp () {
     }
   }
   var ops = ["+","-","*","/","%","<",">","=","==","!="];
-  for (i in ops) 
+  for (var i in ops) 
     this.registerCommand(ops[i],function (interp, args) {
       this.requireExactArgc(args, 3);
       var name = args[0].toString();
@@ -1083,3 +1083,5 @@ function TclParser(text) {
     this.cur = this.text.charAt(this.index);
   }
 }
+
+export default TclInterp;
