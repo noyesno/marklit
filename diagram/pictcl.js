@@ -309,7 +309,7 @@ tcl.registerCommand("move", function(interp, args){
   svg_stack.push(new_anchor);
 });
 
-function PicDiagram(svg, pictcl_code){
+function PicDiagram(el, pictcl_code){
   svg_anchor = {
     flow: 'right',
     east:  {x:0, y:0},
@@ -323,9 +323,25 @@ function PicDiagram(svg, pictcl_code){
     return this[this.length-1];
   };
 
+  var svg;
+
+  if(el.tagName=="CODE"){
+    var newsvg = PicSVG.createElement("svg");
+    var preNode = el.parentElement;
+    var figure = document.createElement("figure");
+    preNode.parentElement.replaceChild(figure, preNode);
+    figure.appendChild(newsvg);
+    figure.appendChild(preNode);
+    svg = newsvg; 
+    pictcl_code = el.textContent;
+  }else{
+    svg = el;
+    pictcl_code = el.parentElement.querySelector("script[type='text/pictcl']").text;
+  }
+
+  svg.setAttribute("stroke", "black");
 
   window.svg = svg;
-  var pictcl_code = svg.parentElement.querySelector("script[type='text/pictcl']").text;
   tcl.eval(pictcl_code);
 
   var padx= 10, pady=10;
