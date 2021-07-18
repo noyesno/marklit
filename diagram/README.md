@@ -16,7 +16,7 @@ arrow
 
 
 <script type="module">
-import PicDiagram from 'https://cdn.jsdelivr.net/gh/noyesno/marklit/diagram/pictcl.js';
+import PicDiagram from 'https://cdn.jsdelivr.net/gh/noyesno/marklit/diagram/pictcl.min.js';
 
 PicDiagram(document.querySelector("code.lang-pictcl"));
 </script>

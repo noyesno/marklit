@@ -15,7 +15,15 @@ let PicSVG = {
     }
     return svgElm;
   },
+  createText: function(attrs){
+     attrs = Object.assign({
+       stroke: "none",
+       "text-anchor": "middle",
+       "dominant-baseline":"middle",
+     }, attrs);
 
+     return this.createElement("text", attrs);
+  },
   measureText: function(text, svg) {
     var svgElement = PicSVG.createElement("text");
     svgElement.textContent = text;
@@ -130,11 +138,7 @@ tcl.registerCommand("box", function(interp, args){
   svg.appendChild(shape);
 
   if(text){
-     var svg_text = PicSVG.createElement("text", {
-       x:cx, y:cy,
-       "text-anchor": "middle",
-       "dominant-baseline":"middle",
-     });
+     var svg_text = PicSVG.createText({x:cx, y:cy});
      svg_text.textContent = text;
      svg.appendChild(svg_text);
   }
@@ -212,11 +216,7 @@ tcl.registerCommand("line", function(interp, args){
 
   var text = PicTcl.args_text(args);
   if(text){
-     var svg_text = PicSVG.createElement("text", {
-       x:cx, y:cy,
-       "text-anchor": "middle",
-       "dominant-baseline":"middle",
-     });
+     var svg_text = PicSVG.createText({x:cx, y:cy});
      svg_text.textContent = text;
      svg.appendChild(svg_text);
   }
@@ -271,11 +271,7 @@ tcl.registerCommand("circle", function(interp, args){
 
   var text = PicTcl.args_text(args);
   if(text){
-     var svg_text = PicSVG.createElement("text", {
-       x:cx, y:cy,
-       "text-anchor": "middle",
-       "dominant-baseline":"middle",
-     });
+     var svg_text = PicSVG.createText({ x:cx, y:cy });
      svg_text.textContent = text;
      svg.appendChild(svg_text);
   }
@@ -325,6 +321,10 @@ function PicDiagram(el, pictcl_code){
 
   var svg;
 
+  if(typeof(el)=="string"){
+    el = document.querySelector(el);
+  }
+
   if(el.tagName=="CODE"){
     var newsvg = PicSVG.createElement("svg");
     var preNode = el.parentElement;
@@ -334,6 +334,14 @@ function PicDiagram(el, pictcl_code){
     figure.appendChild(preNode);
     svg = newsvg; 
     pictcl_code = el.textContent;
+    preNode.style.display = 'none';
+    svg.addEventListener('dblclick', function(){
+      if(preNode.style.display == 'none'){
+        preNode.style.display = 'block';
+      }else{
+        preNode.style.display = 'none';
+      }
+    });
   }else{
     svg = el;
     pictcl_code = el.parentElement.querySelector("script[type='text/pictcl']").text;
