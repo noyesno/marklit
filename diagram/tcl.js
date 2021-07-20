@@ -238,7 +238,7 @@ function TclInterp () {
     var res  = "";
     interp.inLoop = true;
     interp.code = interp.OK;
-    for(i in list) {
+    for(var i in list) {
        interp.setVar(args[1],interp.objectify(list[i]));
        interp.eval(body);
        if(interp.code == interp.BRK) break;
@@ -886,7 +886,7 @@ function TclParser(text) {
     return this.OK;
   }
   this.parseList = function () {
-    level = 0;
+    var level = 0;
     this.start = this.index;
     while (true) {
       if (this.len == 0) {

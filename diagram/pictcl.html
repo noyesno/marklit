@@ -120,9 +120,19 @@ line -flow down
 </section
 </article>
 
-<aside>
-  <textarea style="display:block;width:100%;margin:1em 0"></textarea>
-</aside>
+<section>
+  <a name="playbox"></a>
+  <aside>
+    <svg id="pictcl-svg"></svg>
+<textarea id="pictcl-input" style="display:block;width:100%;min-height:7em;margin:1em 0">
+line
+box "PicTcl"
+arrow
+</textarea>
+    <p>
+      <button id="pictcl-trigger" type="button">Draw Diagram</button>
+    </p>
+  </aside>
 
 
 <pre>
@@ -131,11 +141,12 @@ circle -right
 circle -down
 circle -padx 0
 </pre>
+</section>
 
 </main>
 
 <script type="module">
-import PicDiagram from './pictcl.js';
+import PicDiagram, {PicSVG} from './pictcl.js';
 
 PicDiagram(document.querySelector("#demo-a1"));
 PicDiagram(document.querySelector("#demo-a2"));
@@ -147,5 +158,13 @@ PicDiagram(document.querySelector("#demo-s1"));
 PicDiagram(document.querySelector("#demo-1"));
 
 PicDiagram("code.lang-pictcl");
+
+document.querySelector("#pictcl-trigger").addEventListener('click', function(){
+  var pictcl_code = document.querySelector("#pictcl-input");
+  var pictcl_svg = pictcl_code.parentElement.querySelector("svg");
+  var new_svg = PicSVG.createElement("svg");
+  pictcl_svg.parentElement.replaceChild(new_svg, pictcl_svg);
+  PicDiagram(new_svg, pictcl_code.value);
+});
 
 </script>

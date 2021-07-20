@@ -333,7 +333,7 @@ function PicDiagram(el, pictcl_code){
     figure.appendChild(newsvg);
     figure.appendChild(preNode);
     svg = newsvg; 
-    pictcl_code = el.textContent;
+    pictcl_code = pictcl_code || el.textContent;
     preNode.style.display = 'none';
     svg.addEventListener('dblclick', function(){
       if(preNode.style.display == 'none'){
@@ -344,7 +344,7 @@ function PicDiagram(el, pictcl_code){
     });
   }else{
     svg = el;
-    pictcl_code = el.parentElement.querySelector("script[type='text/pictcl']").text;
+    pictcl_code = pictcl_code || el.parentElement.querySelector("script[type='text/pictcl']").text;
   }
 
   svg.setAttribute("stroke", "black");
@@ -367,3 +367,4 @@ function PicDiagram(el, pictcl_code){
 
 
 export default PicDiagram;
+export {PicSVG};
