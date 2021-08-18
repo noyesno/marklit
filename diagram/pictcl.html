@@ -21,11 +21,27 @@ svg text {
 <svg xmlns="http://www.w3.org/2000/svg" width="1" height="1">
   <defs>
     <marker id="triangle" viewBox="0 0 10 10"
-          refX="1" refY="5" 
+          refX="10" refY="5" 
           markerUnits="strokeWidth"
           markerWidth="10" markerHeight="10"
-          orient="auto">
+          orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#000"/>
+    </marker>
+    <marker id="diode" viewBox="0 0 12 16"
+          refX="12" refY="8" 
+          markerUnits="strokeWidth"
+          markerWidth="12" markerHeight="16"
+          orient="auto">
+      <path d="M 0 0 L 10 8 v 8 h +2 v -16 h -2 v 8 L 0 16 z" fill="#000" stroke="#000"/>
+    </marker>
+    <marker id="resistor"
+          refX="10" refY="0"
+          markerUnits="strokeWidth"
+          markerWidth="20"
+          markerHeight="10"
+          viewBox="0 -5 20 10"
+          orient="auto">
+      <path stroke="#000" d="M 0 -5 v 10 h 20 v -10 h -20 z" fill="#000"></path>
     </marker>
   </defs>
 </svg>
@@ -59,7 +75,8 @@ arrow
   <section>
     <svg id="demo-a2" stroke="black"></svg>
 <script type="text/pictcl">
-line -flow left
+left
+line
 box "PicTcl"
 arrow
 </script>
@@ -96,6 +113,9 @@ box "3" ; box "7" ;
 box "5" ; box "2"
 box "6" -fill yellow
 box "1" ; box "4"
+arrow "start" -from "1st box.south"      -flow down -arrow "<-" -below
+arrow "end"   -from "1st last box.south" -flow down -arrow "<-" -below
+arrow "stop"  -from "1st last box.south" -flow down -arrow "<-" -padx 36 -below
 </script>
   </section>
 </article>
@@ -119,6 +139,52 @@ line -flow down
 </script>
 </section
 </article>
+
+<article>
+  <section>
+    <svg id="circuit-1" stroke="black"></svg>
+<script type="text/pictcl">
+wire
+wire -resistor
+down
+wire -diode
+left
+wire
+</script>
+  </section>
+</article>
+
+<article>
+<section>
+  <svg id="pikchr-1" stroke="black"></svg>
+<script type="text/pictcl">
+dot -id D1 "First Root" -color red
+dot -id D2 "Second Root" -color blue -padx 96
+circle -id C1 -flow down -size 24 -padx -48 -pady 48
+arrow -from C1.nw -to D1 -dashed
+arrow -from C1.ne -to D2
+</script>
+</section>
+</article>
+
+<article>
+  <section>
+    <svg id="flowchart-1" stroke="black"></svg>
+<script type="text/pictcl">
+arrow
+box "Kickoff"
+arrow -dashed
+circle "Waiting" -dashed
+arrow -dashed
+box "Report" -dashed
+arrow -dashed
+box "Final Report"
+arrow
+</script>
+  </section>
+</article>
+
+
 
 <section>
   <a name="playbox"></a>
@@ -156,6 +222,10 @@ PicDiagram(document.querySelector("#demo-a4"));
 PicDiagram(document.querySelector("#demo-s1"));
 
 PicDiagram(document.querySelector("#demo-1"));
+
+PicDiagram(document.querySelector("#pikchr-1"));
+PicDiagram(document.querySelector("#circuit-1"));
+PicDiagram(document.querySelector("#flowchart-1"));
 
 PicDiagram("code.lang-pictcl");
 

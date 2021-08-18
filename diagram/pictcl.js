@@ -4,13 +4,52 @@ let svg_anchor;
 let svg_stack;
  
 let PicSVG = {
+  layout:{
+    direction: "right"
+  },
+  svg_stack: [],
+
+  reset: function(){
+    this.layout.direction = "right";
+  },
+
+  place: function(direction, anchor){
+    var prev_end, self_start;
+    switch(direction){
+      case "right" :
+        prev_end   = anchor.east;
+        self_start = "west"; 
+        break;
+      case "left" :
+        prev_end   = anchor.west;
+        self_start = "east"; 
+        break;
+      case "up" :
+        prev_end   = anchor.north;
+        self_start = "south"; 
+        break;
+      case "down" :
+        prev_end   = anchor.south;
+        self_start = "north"; 
+        break;
+    }
+    if(anchor.end) {
+      prev_end = anchor.end;
+    }else if(!prev_end && anchor.center){
+      prev_end = anchor.center;
+    } 
+    return [prev_end, self_start];
+  },
+
   createElement: function(name, attrs){
     var xmlns = "http://www.w3.org/2000/svg";
 
     var svgElm = document.createElementNS(xmlns, name);
     if(attrs){
       for(var k in attrs){
-        svgElm.setAttributeNS(null, k, attrs[k]);
+        var value = attrs[k];
+        if(value===null || value===undefined) continue;
+        svgElm.setAttributeNS(null, k, value);
       }
     }
     return svgElm;
@@ -35,6 +74,41 @@ let PicSVG = {
     svgElement.parentNode.removeChild(svgElement);
 
     return bbox;
+  },
+  locateObject: function(id, svg_stack){
+    var toks = id.split(/\s+/);
+    // console.log("locate diagram object", id, toks);
+    id = toks.pop();
+    var nth = toks.shift() || 1;
+    nth = parseInt(nth); 
+
+    // console.log("locate diagram object", id, toks);
+    var loop_start, loop_stop, loop_step;
+    if(toks[0]=="last"){
+      loop_start = svg_stack.length - 1;
+      loop_stop  = -1;
+      loop_step  = -1; 
+    }else{
+      loop_start = 0;
+      loop_stop  = svg_stack.length;
+      loop_step  = 1; 
+    }
+
+    var obj_from;
+    var count=0;
+    for(loop_start; loop_start!=loop_stop; loop_start += loop_step){
+      var item = svg_stack[loop_start];
+      if(item.id == id || item.type==id){
+        count++;
+        // console.log("locate diagram object check", loop_start, count, item);
+        if(nth>0 && count == nth){
+          // console.log("locate diagram object found", loop_start, count, item);
+          obj_from = item;
+          break;
+        }
+      }
+    }
+    return obj_from;
   }
 }
 
@@ -68,54 +142,62 @@ let PicTcl = {
       }
     }
     return value;
+  },
+  args_index: function(args, name){
+    for(var i=1, n=args.length; i<n; i++){
+      if(args[i].content == name) {
+        return i;
+      }
+    }
+    return 0;
   }
 }
 
 tcl.registerCommand("box", function(interp, args){
   var anchor = svg_stack.top();
-  console.log(anchor);
+  console.debug("draw box at", anchor);
   var ox, oy;
 
   var cx, cy, rx, ry;
-  var direction = anchor.flow;
   var text = PicTcl.args_text(args);
   var ipadx = 12, ipady = 8;
 
-  rx = 50;
-  ry = 30;
+  rx = 60;
+  ry = 50;
 
   var textBox = PicSVG.measureText(text, svg);
   console.log("textBox", textBox);
-  rx = Math.ceil(textBox.width/2)  + ipadx;
-  ry = Math.ceil(textBox.height/2) + ipady;
+  if(PicTcl.args_exist(args, "-compact")){
+    rx = Math.ceil(textBox.width/2)  + ipadx;
+    ry = Math.ceil(textBox.height/2) + ipady;
+  }else{
+    rx = Math.ceil(textBox.width/2)  + ipadx;
+    ry = Math.ceil(textBox.height*3.2/2) + ipady;
+  }
 
   var padx = parseInt(PicTcl.args_value(args, "-padx", 0));
   var pady = PicTcl.args_value(args, "-pady", 0);
 
-  switch(direction){
-    case "east": case "right":
-      ox = anchor.east.x;
-      oy = anchor.east.y;
-      cx = ox + rx + padx;
-      cy = oy;
+  var direction = PicSVG.layout.direction;
+  var [prev_end, self_start] = PicSVG.place(direction, anchor);
+
+
+  switch(self_start){
+    case "west": 
+      cx = prev_end.x + rx + padx;
+      cy = prev_end.y;
       break;
-    case "west": case "left":
-      ox = anchor.west.x;
-      oy = anchor.west.y;
-      cx = ox - rx - padx;
-      cy = oy;
+    case "east": 
+      cx = prev_end.x - rx - padx;
+      cy = prev_end.y;
       break;
-    case 'down': case 'south':
-      ox = anchor.south.x;
-      oy = anchor.south.y;
-      cx = ox;
-      cy = oy+ry;
+    case "north": 
+      cx = prev_end.x;
+      cy = prev_end.y + ry + pady;
       break;
-    case 'up': case 'north':
-      ox = anchor.north.x;
-      oy = anchor.north.y;
-      cx = ox;
-      cy = oy-ry;
+    case "south": 
+      cx = prev_end.x;
+      cy = prev_end.y - ry - pady;
       break;
   }
 
@@ -123,6 +205,7 @@ tcl.registerCommand("box", function(interp, args){
   var attr_fill   = PicTcl.args_value(args, "-fill");
   var shape_attrs = {
     x: cx-rx, y: cy-ry, width: rx*2, height: ry*2,
+    "stroke-width": 2,
     fill: "none",
   };
 
@@ -143,23 +226,30 @@ tcl.registerCommand("box", function(interp, args){
      svg.appendChild(svg_text);
   }
 
-  var new_anchor = Object.assign({}, anchor);
+  if(PicTcl.args_exist(args,"-dashed")){
+    shape.setAttribute("stroke-dasharray", "6");
+  }
+
+  var new_anchor = {}; // Object.assign({}, anchor);
+  new_anchor.type  = "box";
   new_anchor.east  = {x: cx+rx, y: cy};
   new_anchor.west  = {x: cx-rx, y: cy};
   new_anchor.south = {x: cx, y: cy+ry};
   new_anchor.north = {x: cx, y: cy-ry};
   svg_stack.push(new_anchor);
 });
+tcl.registerCommand("cell", tcl.getCommand("box").func);
 
 
 
 tcl.registerCommand("line", function(interp, args){
+  var shape_type = args[0].content;
   var anchor = svg_stack.top();
   console.log("line", anchor);
   var ox, oy;
 
   var cx, cy, rx, ry;
-  var direction = PicTcl.args_value(args, "-flow") || anchor.flow;
+  var direction = PicTcl.args_value(args, "-flow") || PicSVG.layout.direction;
 
   rx = 30;
   ry = 30;
@@ -169,68 +259,136 @@ tcl.registerCommand("line", function(interp, args){
 
   var x_scale = 1, y_scale = 1;
 
-  switch(direction){
-    case "east": case "right":
-      ox = anchor.east.x;
-      oy = anchor.east.y;
-      cx = ox + rx + padx;
-      cy = oy;
+  var anchor_start, anchor_end;
+
+  var [prev_end, self_start] = PicSVG.place(direction, anchor);
+  anchor_start = prev_end;
+  var arg_from = PicTcl.args_value(args, "-from");
+  var arg_to   = PicTcl.args_value(args, "-to");
+  if(arg_from){
+    var [id_from, anchor_from="center"] = arg_from.split('.');
+    var obj_from = PicSVG.locateObject(id_from, svg_stack);
+    anchor_start = obj_from[anchor_from];
+
+
+    if(arg_to){
+      var [id_to,   anchor_to="center"]   = arg_to.split('.');
+      var obj_to   = PicSVG.locateObject(id_to, svg_stack);
+      console.log("obj_from", obj_from, "obj_to", obj_to); 
+      anchor_end   = obj_to[anchor_to];
+      // layout = "none";
+    }
+  }
+  prev_end = anchor_start;
+
+
+
+  switch(self_start){
+    case "west": 
+      cx = prev_end.x + rx + padx;
+      cy = prev_end.y;
       ry = 0;
       break;
-    case "west": case "left":
-      ox = anchor.west.x;
-      oy = anchor.west.y;
-      cx = ox - rx - padx;
-      cy = oy;
+    case "east": 
+      cx = prev_end.x - rx - padx;
+      cy = prev_end.y;
       ry = 0;
       x_scale = -1;
       break;
-    case 'down': case 'south':
-      ox = anchor.south.x;
-      oy = anchor.south.y;
-      cx = ox;
-      cy = oy+ry;
+    case "north": 
+      cx = prev_end.x + padx;
+      cy = prev_end.y + ry + pady;
       rx = 0;
       break;
-    case 'up': case 'north':
-      ox = anchor.north.x;
-      oy = anchor.north.y;
-      y_scale = -1;
-      cx = ox;
-      cy = oy-ry;
+    case "south": 
+      cx = prev_end.x;
+      cy = prev_end.y - ry - pady;
       rx = 0;
+      y_scale = -1;
       break;
   }
 
-  var shape = PicSVG.createElement("line", {
-    x1: cx-rx*x_scale, y1: cy-ry*y_scale, 
-    x2: cx+rx*x_scale, y2: cy+ry*y_scale, 
-    fill: "none",
-  });  
+  var x1, x2, y1, y2;
+  if(anchor_end){
+      x1 = anchor_start.x + padx;
+      y1 = anchor_start.y + pady ;
+      x2 = anchor_end.x + padx;
+      y2 = anchor_end.y + pady;
+  
+  }else{ 
+      x1 = cx-rx*x_scale;
+      y1 = cy-ry*y_scale;
+      x2 = cx+rx*x_scale;
+      y2 = cy+ry*y_scale;
+  }
 
-  if(args[0].content=="arrow"){
-    shape.setAttributeNS(null, "marker-end", "url(#triangle)");
+  var shape;
+
+  if(shape_type.match(/arrow|line/)){
+    // ...
+    shape = PicSVG.createElement("line", {
+      x1: x1, y1: y1, x2: x2, y2: y2,
+      fill: "none",
+    });  
+  } else {
+    shape = PicSVG.createElement("path", {
+      d: `M ${x1} ${y1} L ${cx} ${cy} L ${x2} ${y2}`, 
+      fill: "none",
+    });  
+  }
+
+  if(shape_type=="arrow"){
+    switch(PicTcl.args_value(args, "-arrow")){
+      case "start": case "<-":
+        shape.setAttributeNS(null, "marker-start", "url(#triangle)");
+        break; 
+      case "end": case "->":
+      default:
+        shape.setAttributeNS(null, "marker-end", "url(#triangle)");
+    }
+  }else if(shape_type=="wire"){
+    if(PicTcl.args_exist(args, "-diode")){
+      shape.setAttributeNS(null, "marker-mid", "url(#diode)");
+    } else if(PicTcl.args_exist(args, "-resistor")){
+      shape.setAttributeNS(null, "marker-mid", "url(#resistor)");
+    }
+  }
+
+  if(PicTcl.args_exist(args,"-dashed")){
+    shape.setAttribute("stroke-dasharray", "6");
   }
 
   svg.appendChild(shape);
 
-  var text = PicTcl.args_text(args);
-  if(text){
-     var svg_text = PicSVG.createText({x:cx, y:cy});
-     svg_text.textContent = text;
-     svg.appendChild(svg_text);
-  }
-
-  var new_anchor = Object.assign({}, anchor);
+  var new_anchor = {}; // Object.assign({}, anchor);
+  new_anchor.type  = shape_type;
   new_anchor.east  = {x: cx+rx, y: cy};
   new_anchor.west  = {x: cx-rx, y: cy};
   new_anchor.south = {x: cx, y: cy+ry};
   new_anchor.north = {x: cx, y: cy-ry};
-  new_anchor.flow  = direction;
+  new_anchor.end   = {x: cx+rx*x_scale, y: cy+ry*y_scale};
+  PicSVG.layout.direction = direction;  // TOOD
   svg_stack.push(new_anchor);
+
+  var text = PicTcl.args_text(args);
+  if(text){
+     var text_x = cx, text_y = cy;
+     var text_valign = null;
+     if(PicTcl.args_exist(args, "-below")) {
+       text_x = new_anchor.south.x;
+       text_y = new_anchor.south.y;
+       text_valign = "hanging";
+     }
+     // hanging
+     var svg_text = PicSVG.createText({x:text_x, y:text_y, "dominant-baseline":text_valign});
+     svg_text.textContent = text;
+     svg.appendChild(svg_text);
+  }
+
 });
 
 tcl.registerCommand("arrow", tcl.getCommand("line").func);
+tcl.registerCommand("wire",  tcl.getCommand("line").func);
 
 
 
@@ -240,32 +398,59 @@ tcl.registerCommand("circle", function(interp, args){
   var ox, oy;
 
   var cx, cy, cr;
-  var direction = anchor.flow;
+  var direction = PicTcl.args_value(args, "-flow") || PicSVG.layout.direction;
 
-  cr = 50;
+  cr = PicTcl.args_value(args, "-size") || 50;
+  cr = parseInt(cr);
 
   var padx = parseInt(PicTcl.args_value(args, "-padx", 0));
-  var pady = PicTcl.args_value(args, "-pady", 0);
+  var pady = parseInt(PicTcl.args_value(args, "-pady", 0));
+  var fill_color = "none";
 
-  switch(direction){
-    case "east": case "right":
-      ox = anchor.east.x;
-      oy = anchor.east.y;
-      cx = ox + cr + padx;
-      cy = oy;
+  var is_dot = (args[0].content=="dot");
+
+  if(is_dot){
+    cr = 3;
+    fill_color = "black";
+  }
+
+  var [prev_end, self_start] = PicSVG.place(direction, anchor);
+
+  switch(self_start){
+    case "west":
+      cx = prev_end.x + cr + padx;
+      cy = prev_end.y;
       break;
-    case 'down': case 'south':
-      ox = anchor.south.x;
-      oy = anchor.south.y;
-      cx = ox;
-      cy = oy+cr;
+    case "east":
+      cx = prev_end.x - cr - padx;
+      cy = prev_end.y;
       break;
+    case "north":
+      cx = prev_end.x + padx;
+      cy = prev_end.y + cr + pady;
+      break;
+    case "south":
+      cx = prev_end.x + padx;
+      cy = prev_end.y - cr - pady;
+      break;
+  }
+
+  var color_stroke = PicTcl.args_value(args, "-color");
+  if(color_stroke){
+    if(is_dot){
+      fill_color = color_stroke;
+    }
   }
 
   var circle = PicSVG.createElement("circle", {
     cx: cx, cy: cy, r: cr,
-    fill: "none",
+    fill: fill_color,
+    "stroke-width": 2
   });  
+
+  if(PicTcl.args_exist(args,"-dashed")){
+    circle.setAttribute("stroke-dasharray", "6");
+  }
 
   svg.appendChild(circle);
 
@@ -273,37 +458,104 @@ tcl.registerCommand("circle", function(interp, args){
   if(text){
      var svg_text = PicSVG.createText({ x:cx, y:cy });
      svg_text.textContent = text;
+     if(color_stroke){
+       svg_text.setAttribute("fill", color_stroke);
+     }
      svg.appendChild(svg_text);
   }
 
-  var new_anchor = Object.assign({}, anchor);
-  new_anchor.east  = {x: cx+cr, y: cy};
-  new_anchor.south = {x: cx, y: cy+cr};
+  var new_anchor = {}; // Object.assign({}, anchor);
+  new_anchor.type  = "circle";
+  new_anchor.east   = {x: cx+cr, y: cy};
+  new_anchor.west   = {x: cx-cr, y: cy};
+  new_anchor.south  = {x: cx,    y: cy+cr};
+  new_anchor.north  = {x: cx,    y: cy-cr};
+  new_anchor.center = {x: cx, y: cy};
+  new_anchor.ne     = {x: cx+cr*Math.cos(Math.PI/4), y: cy-cr*Math.cos(Math.PI/4)};
+  new_anchor.nw     = {x: cx-cr*Math.cos(Math.PI/4), y: cy-cr*Math.cos(Math.PI/4)};
+
+  var shape_id = PicTcl.args_value(args,"-id");
+  if(shape_id) new_anchor.id = shape_id;
+
   svg_stack.push(new_anchor);
 });
+tcl.registerCommand("dot", tcl.getCommand("circle").func);
 
 
 tcl.registerCommand("move", function(interp, args){
   var anchor = svg_stack.top();
   var gap = 20;
 
-  var new_anchor = Object.assign({}, anchor);
+  var new_anchor = {}; // Object.assign({}, anchor);
+
+  var direction = PicSVG.layout.direction;
+  if(PicTcl.args_exist(args, "-down")){
+    direction = "down";
+  }else if(PicTcl.args_exist(args, "-up")){
+    direction = "up";
+  }else if(PicTcl.args_exist(args, "-left")){
+    direction = "left";
+  }else if(PicTcl.args_exist(args, "-right")){
+    direction = "right";
+  }
 
   console.log("move", args);
-  if(PicTcl.args_exist(args, "-down")){
-    console.log("move down");
-    new_anchor.south.y += gap;
-    new_anchor.flow = 'down';
-  }else if(PicTcl.args_exist(args, "-right")){
-    new_anchor.east.x += gap;
-    new_anchor.flow = 'right';
-  }else{
-    new_anchor.east.x += gap;
+  switch(direction){
+    case "down":
+      console.log("move down");
+      new_anchor.center = anchor.south;
+      new_anchor.center.y += gap;
+      PicSVG.layout.direction = "down";
+      break;
+    case "up":
+      console.log("move up");
+      new_anchor.center = anchor.north;
+      new_anchor.center.y -= gap;
+      PicSVG.layout.direction = "up";
+      break;
+    case "left":
+      new_anchor.center = anchor.west;
+      new_anchor.center.x -= gap;
+      PicSVG.layout.direction = "left";
+      break;
+    case "right":
+      new_anchor.center = anchor.east;
+      new_anchor.center.x += gap;
+      PicSVG.layout.direction = "right";
+      break;
   }
 
 
   svg_stack.push(new_anchor);
 });
+
+tcl.registerCommand("layout", function(interp, args){
+  var anchor = svg_stack.top();
+  var gap = 20;
+
+  var cmdname = args[0].content;
+  switch(cmdname){
+     case "down":
+       PicSVG.layout.direction = "down";   
+       break;
+     case "up":
+       PicSVG.layout.direction = "up";   
+       break;
+     case "left":
+       PicSVG.layout.direction = "left";   
+       break;
+     case "right":
+       PicSVG.layout.direction = "right";   
+       break;
+     default:
+       // TODO: unknown
+       break;
+  }
+});
+tcl.registerCommand("down", tcl.getCommand("layout").func);
+tcl.registerCommand("left", tcl.getCommand("layout").func);
+tcl.registerCommand("right", tcl.getCommand("layout").func);
+tcl.registerCommand("up", tcl.getCommand("layout").func);
 
 function PicDiagram(el, pictcl_code){
   svg_anchor = {
@@ -318,6 +570,7 @@ function PicDiagram(el, pictcl_code){
   svg_stack.top = function(){
     return this[this.length-1];
   };
+  PicSVG.reset();
 
   var svg;
 
@@ -352,7 +605,7 @@ function PicDiagram(el, pictcl_code){
   window.svg = svg;
   tcl.eval(pictcl_code);
 
-  var padx= 10, pady=10;
+  var padx= 16, pady=16;
 
   var svgbox = svg.getBBox();
   svgbox.x      -= padx;
@@ -361,7 +614,7 @@ function PicDiagram(el, pictcl_code){
   svgbox.height += pady*2;
 
   svg.setAttribute("viewBox", [svgbox.x, svgbox.y, svgbox.width, svgbox.height].join(' '));
-  svg.setAttribute("width", svgbox.width);
+  svg.setAttribute("width",  svgbox.width);
   svg.setAttribute("height", svgbox.height);
 }
 
