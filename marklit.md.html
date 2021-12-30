@@ -1,11 +1,21 @@
 Marklit Markdown Page
 =====================
 
-## Section
+1. Writing with marked text.
+2. Edit and View with text editor.
+3. View with web browser.
+4. Support Literate Programming
 
-  * a
-  * b
-  * c
+## Usage
+
+## Code Blocks
+
+[info string]: https://github.github.com/gfm/#info-string
+
+Code block [info string][] support some special format text to provide meta data:
+
+  * `file:demo.tcl`
+  * `-file demo.tcl`
 
 ```tcl file:abc.tcl
 set abc 123
@@ -15,11 +25,29 @@ set abc 123
 set abc 123
 ```
 
-<p>abc</p>
+```tcl -file def.tcl
+set abc 123
+```
+
+## Code Highlight
 
 ```javascript
 set html "pre > code"
 ```
+
+## Resource
+
+[gfm]:   https://github.github.com/gfm/
+[noweb]: https://www.cs.tufts.edu/~nr/noweb/
+
+* Markdeep - https://casual-effects.com/markdeep/
+  * [Markdeep Feature Demo](https://casual-effects.com/markdeep/features.md.html)
+* https://marked.js.org
+* https://requirejs.org/
+* https://github.com/amdjs/amdjs-api
+* [GFM - GitHub Flavored Markdown Spec][gfm]
+* [Noweb — A Simple, Extensible Tool for Literate Programming][noweb]
+
 
 <!-- marklit: -->
 <script src="marklit.md.js" type="module"></script>

@@ -3,8 +3,64 @@ body {
   font-family:consolas, monospace;
 }
 
-pre > code {
+article.marklit {
+  max-width: 64em;
+  margin: auto;
+}
+
+article.marklit pre > code {
   display:block;
   padding:1rem;
   background-color:#f9f9f9;
+  line-height: 1.2;
+  border-radius: 0;
+}
+
+
+pre {
+    position:relative;
+    padding-top:1.5rem;
+}
+pre > label {
+    border: 1px solid teal;
+
+    text-align: right;
+    position:absolute;
+    right:0;
+    border-width:0 0 2px 0 ;
+    font-weight:bold;
+    color:teal;
+
+    line-height:1.5em;
+    padding:0 0.5em;
+    top:0em;
+}
+
+article.marklit > h1:first-child {
+    margin:1rem 0 4rem 0;
+    color:teal;
+    border-bottom: 3px double teal;
+    padding-bottom: 0.4em;
+}
+
+article.marklit h2 {
+    margin-top: 2rem;
+    color: teal;
+    text-decoration: none;
+}
+
+article.marklit a {
+    text-decoration: none;
+    color:goldenrod;
+}
+
+article.marklit a:hover {
+    text-decoration: underline;
+}
+
+article.marklit code {
+  background-color: #ffe;
+  padding: 3px 8px;
+  line-height: 2;
+  border-radius: 12px;
 }
