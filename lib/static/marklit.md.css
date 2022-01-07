@@ -16,6 +16,10 @@ article.marklit pre > code {
   border-radius: 0;
 }
 
+article.marklit pre > code[data-chunk] {
+    border: 3px double teal;
+    border-radius: 3px;
+}
 
 pre {
     position:relative;

@@ -8,6 +8,11 @@ Marklit Markdown Page
 
 ## Usage
 
+```tcl <<=abc.tcl>>
+puts abc
+  <<@abc>>
+```
+
 ## Code Blocks
 
 [info string]: https://github.github.com/gfm/#info-string
@@ -50,5 +55,8 @@ set html "pre > code"
 
 
 <!-- marklit: -->
-<script src="marklit.md.js" type="module"></script>
+<!--
+<script src="https://cdn.jsdelivr.net/gh/noyesno/marklit/lib/static/marklit.md.js" type="module"></script>
+-->
+<script src="./lib/static/marklit.md.js" type="module"></script>
 
