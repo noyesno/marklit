@@ -1,7 +1,7 @@
 Marklit - Markdown + Literate Programming
 =========================================
-%keyword:  expander
-%language: tcl vim
++ keyword:  expander
++ language: tcl vim
 
 "marklit" start with the idea of implement Literate Programming using markdown as markup for text.
 
@@ -21,6 +21,7 @@ For the code part, there are some possible choices on the markup syntax.
 
 
 
+
 ### Inline Format
 
   * link - `[Link Text](link-url)` -> [Link Text](https://www)
@@ -31,25 +32,30 @@ For the code part, there are some possible choices on the markup syntax.
 
   * http://www.wjduquette.com/expand
 
-``` tcl
-set abc 123
+``` javascript hello
+//set abc 123;
+function def(){}
 ```
 
 ## Tclsh Hashbang
 
-%<=tclsh-hashbang>
+### %<=tclsh-hashbang>
+
+```tcl
 #!/usr/bin/env tclsh
 
 set bin_dir [file dir [file normalize [info script]]]
 set lib_dir [file join [file dir $bin_dir] lib]
 
 tcl::tm::path add $lib_dir
-%</tclsh-hashbang>
+```
 
 
 ## Expander
 
-%<=package-expander>
+###  <=package-expander>
+
+```tcl
 package require TclOO
 package provide expander
 
@@ -80,9 +86,12 @@ oo::class create expander {
 
   <<expander-expand>>
 }
-%</package-expander>
+```
 
-%<=expander-cpush>
+
+####  <=expander-cpush>
+
+```
     method cpush {cname} {
 	my variable context
 
@@ -91,9 +100,11 @@ oo::class create expander {
 	set context($depth.cname) $cname
 	set context($depth.text) ""
     }
-%@
+```
 
-%<=expander-cpop>
+#### %<=expander-cpop>
+
+```tcl
     method cpop {cname} {
 	my variable context
 
@@ -105,36 +116,44 @@ oo::class create expander {
 	incr context(depth) -1
 	return $text
     }
-%@
+```
 
-%<=expander-cappend>
+#### %<=expander-cappend>
+
+```tcl
     method cappend {text} {
 	my variable context
 
 	set depth $context(depth)
 	append context($depth.text) $text
     }
-%@
+```
 
-%<=expander-cname>
+#### %<=expander-cname>
+
+```tcl
     method cname {} {
 	my variable context
 
 	set depth $context(depth)
 	return $context($depth.cname)
     }
-%@
+```
 
 
-%<=expander-cset>
+#### %<=expander-cset>
+
+```tcl
     method cset {name value} {
 	my variable context
 	set depth $context(depth)
 	set context($depth@$name) $value
     }
-%</expander-cset>
+```
 
-%<=expander-cget>
+#### %<=expander-cget>
+
+```tcl
     method cget {name {value ""}} {
 	my variable context
 	set depth $context(depth)
@@ -144,9 +163,11 @@ oo::class create expander {
           return $value
         }
     }
-%</expander-cget>
+```
 
-%<=expander-registry>
+#### %<=expander-registry>
+
+```tcl
     method registry {act args} {
         my variable registry_dict
 
@@ -158,16 +179,20 @@ oo::class create expander {
           return [dict get $registry_dict $section $name]
         }
     }
-%</expander-registry>
+```
 
-%<=expander-textcmd>
+### %<=expander-textcmd>
+
+```tcl
     self method textcmd {text} {
       return $text
     }
-%</expander-textcmd>
+```
 
 
-%<=expander-expand>
+### %<=expander-expand>
+
+```tcl
     method expand {ch mark_start mark_end args} {
       <<expander-expand-args>>
       <<expander-expand-init>>
@@ -188,28 +213,40 @@ oo::class create expander {
 
       return $result
     }
-%</expander-expand>
+```
+
 
 ```tcl
   set ch [chan create read [stringchan new $text]]
   chan close $ch
 ```
-%<=expander-expand-args>
+
+
+### %<=expander-expand-args>
+
+```tcl
       array set kargs {
 	-evalcmd "uplevel #0"
 	-textcmd "expander textcmd"
       }
       array set kargs $args
-%</expander-expand-args>
+```
 
-%<=expander-expand-init>
+
+### %<=expander-expand-init>
+
+```tcl
       my variable context
       unset -nocomplain context
       if {$mark_end eq "\n"} {
       }
-%</expander-expand-init>
+```
+      
+      
 
-%<=expander-expand-text>
+### %<=expander-expand-text>
+
+```tcl
 	    set pos [string first $mark_start $line]
 	    if {$mark_end eq "\n" && $pos==0 || $mark_end ne "\n" && $pos>=0} {
 	      # puts "-- see $mark_start"
@@ -224,9 +261,11 @@ oo::class create expander {
 	      # }
 	      break
 	    }
-%</expander-expand-text>
+```
 
-%<=expander-expand-macro>
+### %<=expander-expand-macro>
+
+```tcl
 	    if {$mark_end eq "\n"} {
 	      set pos [string length $line]
 	    } else {
@@ -246,12 +285,14 @@ oo::class create expander {
 	      my cappend [{*}$kargs(-textcmd) $line]
 	      break
 	    }
-%</expander-expand-macro>
+```
 
 
 ## docstrip
 
-%<=package-docstrip>
+### %<=package-docstrip>
+
+```
 
 <<docstrip-package-require>>
 
@@ -268,16 +309,20 @@ namespace eval docstrip {
   namespace export tangle-x
   namespace ensemble create
 }
-%</package-docstrip>
+```
 
-%<=docstrip-expr>
+### %<=docstrip-expr>
+
+```tcl
     proc docstrip-expr {guard_expr} {
       variable docstrip_terminals
       expr [regsub -all -- {[^()|&!]+} $guard_expr {[info exists docstrip_terminals(&)]}]
     }
-%</docstrip-expr>
+```
 
-%<=docstrip-expand>
+### %<=docstrip-expand>
+
+```tcl
   <<docstrip-expr>>
 
     proc docstrip-evalcmd {expander line} {
@@ -335,9 +380,11 @@ namespace eval docstrip {
       return
     }
 
-%</docstrip-expand>
+```
 
-%<=docstrip-extract>
+### %<=docstrip-extract>
+
+```tcl
 
     proc extract {text terminals} {
       variable docstrip_terminals
@@ -357,9 +404,11 @@ namespace eval docstrip {
 
   <<docstrip-expand>>
   <<docstrip-textcmd>>
-%</docstrip-extract>
+```
 
-%<=docstrip-textcmd>
+# %<=docstrip-textcmd>
+
+```tcl
     proc docstrip-textcmd {expander text} {
       if [regexp {^\s*<<[^>]+>>\s*$} $text] {
         set snippet [$expander registry get snippet "include"]
@@ -367,11 +416,14 @@ namespace eval docstrip {
       }
       return $text
     }
-%</docstrip-textcmd>
+    
+```
 
 ### tangle
 
-%<=docstrip-tangle>
+### %<=docstrip-tangle>
+
+```tcl
     proc tangle {ch root} {
 
       <<docstrip-tangle-parse>>
@@ -382,9 +434,11 @@ namespace eval docstrip {
     }
 
     <<docstrip-tangle-expand>>
-%</docstrip-tangle>
+```
 
-%<=docstrip-tangle-x>
+### %<=docstrip-tangle-x>
+
+```tcl
   proc tangle-x {fpath root} {
     set slave [interp create]
 
@@ -400,18 +454,22 @@ namespace eval docstrip {
     }
   }
 
-%</docstrip-tangle-x>
+```
 
-%<=docstrip-tangle-f>
+### %<=docstrip-tangle-f>
+
+```tcl
   proc tangle-f {fpath root} {
       set fp [open $fpath "r"]
       set code [tangle $fp $root]
       close $fp
       return $code
   }
-%</docstrip-tangle-f>
+```
 
-%<=package-argv>
+### %<=package-argv>
+
+```tcl
 package ifneeded argv-util 0.1 {
     package provide argv-util 0.1
     
@@ -424,30 +482,38 @@ package ifneeded argv-util 0.1 {
 	}
     }
 }
-%</package-argv>
+```
 
 
-%<=docstrip-tangle-parse>
+### %<=docstrip-tangle-parse>
+
+```tcl
       set expander [expander new]
       set result [
         $expander expand $ch "%" "\n" \
           -evalcmd [list [namespace which docstrip-evalcmd] $expander] \
       ]
-%</docstrip-tangle-parse>
+```
 
-%<=docstrip-tangle-tangle>
+### %<=docstrip-tangle-tangle>
+
+```tcl
       set ch_code [chan create {write read} [stringchan new ""]]
       set code [tangle-expand $ch_code $root $expander]
       chan seek $ch_code 0 start
       set result [chan read $ch_code]
       chan close $ch_code
-%</docstrip-tangle-tangle>
+```
 
-%<=docstrip-tangle-cleanup>
+#### %<=docstrip-tangle-cleanup>
+
+```tcl
       $expander destroy
-%</docstrip-tangle-cleanup>
+```
 
-%<=docstrip-tangle-expand>
+### %<=docstrip-tangle-expand>
+
+```tcl
     proc tangle-expand {ch chunk expander} {
         # puts $ch "# debug: expand chunk $chunk"
         set text [$expander registry get snippet $chunk]
@@ -461,17 +527,23 @@ package ifneeded argv-util 0.1 {
         }
         return $buffer
     }
-%</docstrip-tangle-expand>
+```
 
-%<=docstrip-package-require>
+#### %<=docstrip-package-require>
+
+```tcl
   package require stringchan
-%</docstrip-package-require>
+```
+
 
 ### weave
+
 %<=docstrip-weave>
 %</docstrip-weave>
 
-%<=marklit-test-tangle>
+### %<=marklit-test-tangle>
+
+```tcl
   <<tclsh-hashbang>>
 
   <<package-expander>>
@@ -481,11 +553,13 @@ package ifneeded argv-util 0.1 {
   set code [docstrip tangle stdin $chunk]
   puts $code
   exit
-%</marklit-test-tangle>
+```
 
 ## marklit
 
-%<=marklit>
+### %<=marklit>
+
+```tcl
   <<tclsh-hashbang>>
 
   <<package-expander>>
@@ -508,9 +582,11 @@ package ifneeded argv-util 0.1 {
       puts "MarkLit = Markdown + Literate Programming"
   }
   exit
-%</marklit>
+```
 
-%<=marklit-tangle>
+### %<=marklit-tangle>
+
+```tcl
 proc marklit-tangle {args} {
     set terminals [lassign $args act file_path chunk]
 
@@ -526,12 +602,14 @@ proc marklit-tangle {args} {
     }
 
 }
-%</marklit-tangle>
+```
 
 
 ## docstrip sourcefrom
 
-%<=docstrip-sourcefrom>
+### %<=docstrip-sourcefrom>
+
+```tcl
 proc sourcefrom {fpath terminals} {
   set fp [open $fpath "r"]
   set text [read $fp]
@@ -550,11 +628,13 @@ proc sourcefrom {fpath terminals} {
 
   return $result
 }
-%</docstrip-sourcefrom>
+```
 
 ## Test Our Docstrip
 
-%<=test-our-docstrip>
+### %<=test-our-docstrip>
+
+```tcl
     <<package-docstrip>>
 
     set docstrip_text {
@@ -563,7 +643,7 @@ proc sourcefrom {fpath terminals} {
 
     puts [docstrip extract $docstrip_text debug]
     puts [docstrip extract $docstrip_text no-debug]
-%</test-our-docstrip>
+```
 
 %<=text-docstrip-1>
 
@@ -581,7 +661,9 @@ proc sourcefrom {fpath terminals} {
 
 ## Test Our Expander
 
-%<=test-our-expander>
+### %<=test-our-expander>
+
+```tcl
 proc strong {args} {
   return "<em>"
 }
@@ -600,9 +682,9 @@ set result [expander expand $text "\[" "\]" ]
 puts "===="
 puts $result
 puts "===="
-%</test-expander>
+```
 
-
+```tcl
 exit
 
 
@@ -620,3 +702,4 @@ switch -- $act {
     docstrip::sourcefrom $file_path $terminals
   }
 }
+```
