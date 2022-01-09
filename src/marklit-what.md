@@ -78,6 +78,25 @@ With this design, code block can be seen as a template language. This certainly 
 
 The ability of output multiple files actually turn /nuweb/ input file into a database. LeoEditor and Holo extend this usage model.
 
+### nuweb Example
+
+```nuweb
+@d main @{
+int main(){
+  @<code body@>
+  exit(0);
+}
+@| main exit @}
+
+@d code body @{
+  printf("hello from nuweb\n");
+@}
+
+@o main.c @{
+ @<main@>
+@}
+```
+
 ## Leo Editor
 
   * Leo - http://leoeditor.com/
