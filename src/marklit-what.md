@@ -5,9 +5,13 @@ Marklit & Literate Programming
 
   * http://literateprogramming.com/
 
-Usually, people write code for computer, and use comment to write for human reading.
+Usually, programmer write code for computer to compile or execute, and use comments embeded in code to write for human to read.
 
 With Literate Programming, people start from writing text, and embed code into the text. And later generate source code and docs from the writing. 
+
+
+> Literate programming is the art of preparing programs for human readers. 
+> -- noweb
 
 ## web & noweb
 
@@ -19,19 +23,23 @@ Later, `noweb` is developed for simplicity, extensibility and language-independe
 
 ## tangle & weave
 
-  * `tangle` 
+  * `tangle` - 缠成一团
     - Generate source code
     - `"twist together or entwine into a confusing mass"`
-  * `weave`  
+  * `weave` - 编织 
     - Generate documentation
 
 It's interesting that the word /tangle/ implies the generated code is "a confusing mass".
 While the word /weave/ implies the generated document is carefully organized.
 
+[noweb-hacker-guide] : https://www.cs.tufts.edu/~nr/noweb/guide.html
+[nuweb] : https://www.cs.tufts.edu/~nr/noweb/nuweb.html
+
 ## noweb Syntax
 
   * noweb - https://www.cs.tufts.edu/~nr/noweb/
     - https://github.com/nrnrnr/noweb
+  * [The noweb Hacker's Guide][noweb-hacker-guide]
 
 
 ```noweb
@@ -51,9 +59,14 @@ text block
 @
 ```
 
+
 ## nuweb
 
-  * nuweb - https://github.com/nrnrnr/noweb
+  * nuweb - http://nuweb.sourceforge.net/
+    * https://github.com/sosterwalder/nuweb
+  * [nuweb User's Guide (v1.60)](http://nuweb.sourceforge.net/nuwebdoc.pdf)
+  * [nuweb source/document](http://nuweb.sourceforge.net/nuweb.pdf)
+  * [nuweb 0.87b Document](https://www.cs.tufts.edu/~nr/noweb/nuweb.html)
 
 With /noweb/, inside a code block, the only tricky part is include another code block.
 
@@ -164,113 +177,10 @@ With `expander`,
 
 Char `[` and `]` is used to mark start and end of expander macro.
 
-## Simulate docstrip with expander
+## Obsidian
 
-To simulate `docstrip`, we can define brackets as below
+ * Obsidian - https://obsidian.md/
+ * on top of a local folder of Markdown files.
+ * graph view
+ * backlink
 
-```
-docstrip-expander setbrackets "\n%" "\n"
-```
-
-The directive in docstrip become macros in expander. But the macro names is dynamic, not fixed.
-
-Fortunately, expander support user defined `evelcmd`. So, the solution would look like below:
-
-```
-docstrip-expander evalcmd literate-docstrip-evalcmd
-
-proc literate-docstrip-evalcmd {macro} {
-  switch -glob -- $macro {
-    "<\\**>" {
-      set name [string trim $macro "<*>"]
-      $expander cpush $name
-      return
-    } "</*>" {
-      set name [string trim $macro "</>"]
-      set text [$expander cpop $name]
-
-      if {[docstrip-expr $name]} {
-        return $text
-      } else {
-        return ""
-      }
-    }
-  } 
-}
-```
-
-## docstrip expression
-
-`docstrip-expr` is used to evaluate docstrip expression. 
-
-With Tcl, we can convert it into a Tcl expression and use `expr` to evaluate the result.
-
-One challenge is how to hanle the terminal not defined. We have two choice.
-
-```tcl
-proc docstrip-expr {docstrip_expr} {
-    try {
-      expr $docstrip_expr
-      return 1
-    } trap {TCL READ VARNAME} {} {
-      return 0
-    }
-}
-```
-
-%<*tcltest>
-package require tcltest
-tcltest::configure -verbose "start"
-%</tcltest>
-
-%<*test-trap-read-variable>
-tcltest::test "trap-read-unknown-variable" "read unknown plain variable" {
-    try {
-      set a 1
-      expr {$a && $b}
-    } trap {TCL LOOKUP VARNAME} {} {
-      puts $::errorCode
-      set ::errorCode
-    }
-} "TCL LOOKUP VARNAME b"
-
-tcltest::test "trap-read-unknown-array-element" "read unknown array element" {
-    try {
-      set a 1
-      array set arr {}
-      expr {$a && $arr(b)}
-    } trap {TCL READ VARNAME} {} {
-      puts $::errorCode
-      set ::errorCode
-    }
-} "TCL READ VARNAME"
-%</test-trap-read-variable>
-
-Another choice is using `trace` to set missing terminal value to false.
-
-```
-trace add variable docstrip_vars read [list docstrip-terminal]
-
-proc docstrip-terminal {*terminal_vars name args} {
-  upvar ${*terminal_vars} terminal_vars
-
-  if ![info exist terminal_vars($name)] {
-    set terminal_vars($name) 0
-    return 0
-  } else {
-    return 1
-  }
-}
-```
-
-## literate-docstrip
-
-
-First, let's start from the entry point proc `literate-docstrip`
-
-```tcl
-proc literate-docstrip {text terminals args} {
-  set result [docstrip-expander expand $text]
-  return $result
-}
-```
